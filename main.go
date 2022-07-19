@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/faiz-tessact/go-postgres/pkg/websocket"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
@@ -33,6 +34,7 @@ func main() {
 	router.HandleFunc("/movies/", GetMovies).Methods("GET")
 	router.HandleFunc("/movies/", CreateMovie).Methods("POST")
 	router.HandleFunc("/movies/{movieid}", DeleteMovie).Methods("DELETE")
+	router.HandleFunc("/ws", serveWs)
 	fmt.Println("Server at 8080")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
@@ -49,7 +51,15 @@ func checkErr(err error) {
 	}
 }
 
-// DB set up
+func serveWs(w http.ResponseWriter, r *http.Request) {
+	ws, err := websocket.Upgrade(w, r)
+	if err != nil {
+		fmt.Fprintf(w, "%+V\n", err)
+	}
+	go websocket.Writer(ws)
+	websocket.Reader(ws)
+}
+
 func setupDB() *sql.DB {
 	dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", DB_USER, DB_PASSWORD, DB_NAME)
 	db, err := sql.Open("postgres", dbinfo)
