@@ -30,13 +30,22 @@ const (
 )
 
 func main() {
-	router := mux.NewRouter()
+	printMessage("Getting movies...")
+	handleRequests()
+}
+
+func handleRequests() {
+	pool := websocket.NewPool()
+	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/movies/", GetMovies).Methods("GET")
 	router.HandleFunc("/movies/", CreateMovie).Methods("POST")
 	router.HandleFunc("/movies/{movieid}", DeleteMovie).Methods("DELETE")
-	router.HandleFunc("/ws", serveWs)
-	fmt.Println("Server at 8080")
-	log.Fatal(http.ListenAndServe(":8000", router))
+	go pool.Start()
+
+	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(pool, w, r)
+	})
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
 func printMessage(message string) {
@@ -51,13 +60,20 @@ func checkErr(err error) {
 	}
 }
 
-func serveWs(w http.ResponseWriter, r *http.Request) {
-	ws, err := websocket.Upgrade(w, r)
+func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
+	fmt.Println("WebSocket Endpoint Hit")
+	conn, err := websocket.Upgrade(w, r)
 	if err != nil {
-		fmt.Fprintf(w, "%+V\n", err)
+		fmt.Fprintf(w, "%+v\n", err)
 	}
-	go websocket.Writer(ws)
-	websocket.Reader(ws)
+
+	client := &websocket.Client{
+		Conn: conn,
+		Pool: pool,
+	}
+
+	pool.Register <- client
+	client.Read()
 }
 
 func setupDB() *sql.DB {

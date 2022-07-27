@@ -15,6 +15,8 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+var wsConn *websocket.Conn
+
 func Upgrade(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -62,5 +64,12 @@ func Writer(conn *websocket.Conn) {
 			fmt.Println(err)
 			return
 		}
+	}
+}
+
+func sendMessage(msg string) {
+	err := wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
+	if err != nil {
+		fmt.Printf("error sending message: %s\n", err.Error())
 	}
 }
