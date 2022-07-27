@@ -67,7 +67,7 @@ func Writer(conn *websocket.Conn) {
 	}
 }
 
-func sendMessage(msg string) {
+func SendMessage(msg string) {
 	err := wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
 	if err != nil {
 		fmt.Printf("error sending message: %s\n", err.Error())
