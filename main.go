@@ -12,15 +12,18 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type Movie struct {
-	MovieID   string `json:"movieid"`
-	MovieName string `json:"moviename"`
+type Notification struct {
+	NotificationId      string `json:"notificationid"`
+	NotificationTitle   string `json:"title"`
+	UserId              string `json:"userid"`
+	NotificationContent string `json:"content"`
+	NotificationModel   string `json:"model"`
 }
 
 type JsonResponse struct {
-	Type    string  `json:"type"`
-	Data    []Movie `json:"data"`
-	Message string  `json:"message"`
+	Type    string         `json:"type"`
+	Data    []Notification `json:"data"`
+	Message string         `json:"message"`
 }
 
 const (
@@ -30,16 +33,16 @@ const (
 )
 
 func main() {
-	printMessage("Getting movies...")
+	printMessage("Getting Notifications...")
 	handleRequests()
 }
 
 func handleRequests() {
 	pool := websocket.NewPool()
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/movies/", GetMovies).Methods("GET")
-	router.HandleFunc("/movies/", CreateMovie).Methods("POST")
-	router.HandleFunc("/movies/{movieid}", DeleteMovie).Methods("DELETE")
+	router.HandleFunc("/notifications/", GetNofications).Methods("GET")
+	// router.HandleFunc("/notifications/", CreateNotifications).Methods("POST")
+	// router.HandleFunc("/notifications/{notificationid}", DeleteNotifications).Methods("DELETE")
 	go pool.Start()
 
 	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +67,7 @@ func serveWs(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
 	fmt.Println("WebSocket Endpoint Hit")
 	conn, err := websocket.Upgrade(w, r)
 	if err != nil {
+		fmt.Println("WebSocket error")
 		fmt.Fprintf(w, "%+v\n", err)
 	}
 
@@ -85,80 +89,83 @@ func setupDB() *sql.DB {
 	return db
 }
 
-func GetMovies(w http.ResponseWriter, r *http.Request) {
+func GetNofications(w http.ResponseWriter, r *http.Request) {
 	db := setupDB()
 
-	printMessage("Getting movies...")
+	printMessage("Getting notifications...")
 
-	rows, err := db.Query("SELECT * FROM movies")
+	rows, err := db.Query("SELECT * FROM notifications")
 
 	checkErr(err)
 
-	var movies []Movie
+	var notifications []Notification
 
 	for rows.Next() {
 		var id int
-		var movieID string
-		var movieName string
+		var notificationId string
+		var notificationTitle string
+		var userId string
+		var notificationContent string
+		var notificationModel string
 
-		err = rows.Scan(&id, &movieID, &movieName)
+		err = rows.Scan(&id, &notificationId, &notificationTitle, &userId, &notificationContent, &notificationModel)
 
 		checkErr(err)
 
-		movies = append(movies, Movie{MovieID: movieID, MovieName: movieName})
+		notifications = append(notifications, Notification{NotificationId: notificationId, NotificationTitle: notificationTitle, UserId: userId, NotificationContent: notificationContent, NotificationModel: notificationModel})
 	}
 
-	var response = JsonResponse{Type: "success", Data: movies}
+	var response = JsonResponse{Type: "success", Data: notifications}
 
 	json.NewEncoder(w).Encode(response)
 }
 
-func CreateMovie(w http.ResponseWriter, r *http.Request) {
-	movieID := r.FormValue("movieid")
-	movieName := r.FormValue("moviename")
+// func CreateMovie(w http.ResponseWriter, r *http.Request) {
+// 	movieID := r.FormValue("movieid")
+// 	movieName := r.FormValue("moviename")
 
-	var response = JsonResponse{}
+// 	var response = JsonResponse{}
 
-	if movieID == "" || movieName == "" {
-		response = JsonResponse{Type: "error", Message: "You are missing movieID or movieName parameter."}
-	} else {
-		db := setupDB()
+// 	if movieID == "" || movieName == "" {
+// 		response = JsonResponse{Type: "error", Message: "You are missing movieID or movieName parameter."}
+// 	} else {
+// 		db := setupDB()
 
-		printMessage("Inserting movie into DB")
+// 		printMessage("Inserting movie into DB")
 
-		fmt.Println("Inserting new movie with ID: " + movieID + " and name: " + movieName)
+// 		fmt.Println("Inserting new movie with ID: " + movieID + " and name: " + movieName)
 
-		var lastInsertID int
-		err := db.QueryRow("INSERT INTO movies(movieID, movieName) VALUES($1, $2) returning id;", movieID, movieName).Scan(&lastInsertID)
-		checkErr(err)
+// 		var lastInsertID int
+// 		err := db.QueryRow("INSERT INTO movies(movieID, movieName) VALUES($1, $2) returning id;", movieID, movieName).Scan(&lastInsertID)
+// 		checkErr(err)
 
-		response = JsonResponse{Type: "success", Message: "The movie has been inserted successfully!"}
-	}
+// 		response = JsonResponse{Type: "success", Message: "The movie has been inserted successfully!"}
+// 	}
 
-	json.NewEncoder(w).Encode(response)
-}
+// 	json.NewEncoder(w).Encode(response)
+// }
 
-func DeleteMovie(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
+// func DeleteMovie(w http.ResponseWriter, r *http.Request) {
+// 	params := mux.Vars(r)
 
-	movieID := params["movieid"]
+// 	movieID := params["movieid"]
 
-	var response = JsonResponse{}
+// 	var response = JsonResponse{}
 
-	if movieID == "" {
-		response = JsonResponse{Type: "error", Message: "You are missing movieID parameter."}
-	} else {
-		db := setupDB()
+// 	if movieID == "" {
+// 		response = JsonResponse{Type: "error", Message: "You are missing movieID parameter."}
+// 	} else {
+// 		db := setupDB()
 
-		printMessage("Deleting movie from DB")
+// 		printMessage("Deleting movie from DB")
 
-		_, err := db.Exec("DELETE FROM movies where movieID = $1", movieID)
+// 		_, err := db.Exec("DELETE FROM movies where movieID = $1", movieID)
 
-		// check errors
-		checkErr(err)
+// 		// check errors
+// 		checkErr(err)
 
-		response = JsonResponse{Type: "success", Message: "The movie has been deleted successfully!"}
-	}
+// 		response = JsonResponse{Type: "success", Message: "The movie has been deleted successfully!"}
+// 	}
 
-	json.NewEncoder(w).Encode(response)
-}
+// 	json.NewEncoder(w).Encode(response)
+// }
